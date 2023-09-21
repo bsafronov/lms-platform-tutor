@@ -4,66 +4,83 @@ import * as z from "zod";
 import axios from "axios";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { Button } from "@/shared/ui/button";
+import { Pencil } from "lucide-react";
+import { useState } from "react";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/shared/ui/form";
 import { Input } from "@/shared/ui/input";
-import Link from "next/link";
-import { Button } from "@/shared/ui/button";
-import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
+
+type Props = {
+  initialData: {
+    title: string;
+  };
+  courseId: string;
+};
 
 const formSchema = z.object({
   title: z.string().min(1, {
     message: "Title is required",
   }),
 });
-export default function CreateCoursePage() {
+
+export function TitleForm({ courseId, initialData }: Props) {
+  const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
+
+  const toggleEdit = () => setIsEditing((prev) => !prev);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-    },
+    defaultValues: initialData,
   });
 
   const { isSubmitting, isValid } = form.formState;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const response = await axios.post("/api/courses", values);
-      router.push(`/teacher/courses/${response.data.id}`);
-      toast.success("Course created.");
+      await axios.patch(`/api/courses/${courseId}`, values);
+      toast.success("Course updated!");
+      toggleEdit();
+      router.refresh();
     } catch {
-      toast.error("Something went wrong.");
+      toast.error("Something went wrong!");
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto flex md:items-center md:justify-center h-full p-6">
-      <div>
-        <h1 className="text-2xl">Name your course</h1>
-        <p className="text-sm text-slate-600">
-          What would you like to name your course? Don't worry, you can change
-          this later.
-        </p>
+    <div className="mt-4 border bg-slate-100 rounded-md p-4">
+      <div className="font-medium flex items-center justify-between">
+        Course title
+        <Button variant={"ghost"} onClick={toggleEdit}>
+          {isEditing && <>Cancel</>}
+          {!isEditing && (
+            <>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit title
+            </>
+          )}
+        </Button>
+      </div>
+      {!isEditing && <p className="text-sm mt-2">{initialData.title}</p>}
+      {isEditing && (
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-8 mt-8"
+            className="space-y-4 mt-4"
           >
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Course title</FormLabel>
                   <FormControl>
                     <Input
                       disabled={isSubmitting}
@@ -71,26 +88,16 @@ export default function CreateCoursePage() {
                       {...field}
                     />
                   </FormControl>
-                  <FormDescription>
-                    What will you teach in this course?
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
             <div className="flex items-center gap-x-2">
-              <Link href={"/"}>
-                <Button type="button" variant={"ghost"}>
-                  Cancel
-                </Button>
-              </Link>
-              <Button type="submit" disabled={!isValid || isSubmitting}>
-                Continue
-              </Button>
+              <Button disabled={!isValid || isSubmitting}>Save</Button>
             </div>
           </form>
         </Form>
-      </div>
+      )}
     </div>
   );
 }
